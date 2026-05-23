@@ -1014,6 +1014,14 @@ function ReadingsPage(props) {
     setSentenceForm,
     createSentence,
     deleteItem,
+    saveRetakePlan,
+
+    mistakeReasons = defaultMistakeReasonOptions,
+    newMistakeReason = "",
+    setNewMistakeReason = () => {},
+    addMistakeReason = () => {},
+    deleteMistakeReason = () => {},
+    resetMistakeReasons = () => {},
   } = props;
 
   const readingMistakes = data.mistakes.filter((item) => item.readingId === selectedReadingId);
@@ -1099,7 +1107,7 @@ function ReadingsPage(props) {
                   <div>
                     <p className="field-label">错误原因</p>
                     <div className="chip-group">
-                      {mistakeReasons.map((reason) => (
+                     {(mistakeReasons || defaultMistakeReasonOptions).map((reason) => (
                         <button
                           type="button"
                           key={reason}
