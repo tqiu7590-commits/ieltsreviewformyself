@@ -43,7 +43,12 @@ function normalizeData(raw) {
   const source = raw && typeof raw === "object" ? raw : {};
 
   return {
-    readings: Array.isArray(source.readings) ? source.readings : [],
+    readings: Array.isArray(source.readings)
+      ? source.readings.map((reading) => ({
+          ...reading,
+          difficulty: String(reading.difficulty || "3"),
+        }))
+      : [],
     mistakes: Array.isArray(source.mistakes)
       ? source.mistakes.map((mistake) => ({
           ...mistake,
@@ -215,6 +220,7 @@ export default function App() {
     timeSpent: "",
     totalQuestions: "13",
     correctCount: "",
+    difficulty: "3",
     notes: "",
   });
 
@@ -317,6 +323,7 @@ export default function App() {
       timeSpent: clampNumber(readingForm.timeSpent, 0),
       totalQuestions,
       correctCount,
+      difficulty: readingForm.difficulty || "3",
       notes: readingForm.notes.trim(),
       createdAt: todayISO(),
     };
@@ -331,8 +338,20 @@ export default function App() {
       timeSpent: "",
       totalQuestions: "13",
       correctCount: "",
+      difficulty: "3",
       notes: "",
     });
+  }
+
+  function updateReading(readingId, updatedFields) {
+    setData((prev) => ({
+      ...prev,
+      readings: prev.readings.map((reading) =>
+        reading.id === readingId
+          ? { ...reading, ...updatedFields, updatedAt: todayISO() }
+          : reading
+      ),
+    }));
   }
 
   function deleteReading(id) {
@@ -676,6 +695,7 @@ export default function App() {
             readingForm={readingForm}
             setReadingForm={setReadingForm}
             createReading={createReading}
+            updateReading={updateReading}
             deleteReading={deleteReading}
             mistakeForm={mistakeForm}
             setMistakeForm={setMistakeForm}
@@ -1002,6 +1022,7 @@ function ReadingsPage(props) {
     readingForm,
     setReadingForm,
     createReading,
+    updateReading,
     deleteReading,
     mistakeForm,
     setMistakeForm,
@@ -1027,6 +1048,50 @@ function ReadingsPage(props) {
   const readingMistakes = data.mistakes.filter((item) => item.readingId === selectedReadingId);
   const readingOccurrences = data.wordOccurrences.filter((item) => item.readingId === selectedReadingId);
   const readingSentences = data.sentences.filter((item) => item.readingId === selectedReadingId);
+  const [isEditingReading, setIsEditingReading] = useState(false);
+  const [editingReadingForm, setEditingReadingForm] = useState(null);
+
+  function startEditReading(reading) {
+    setEditingReadingForm({
+      title: reading.title || "",
+      source: reading.source || "",
+      passageNumber: reading.passageNumber || "",
+      date: reading.date || todayISO(),
+      timeSpent: String(reading.timeSpent ?? ""),
+      totalQuestions: String(reading.totalQuestions ?? 13),
+      correctCount: String(reading.correctCount ?? ""),
+      difficulty: String(reading.difficulty || "3"),
+      notes: reading.notes || "",
+    });
+    setIsEditingReading(true);
+  }
+
+  function cancelEditReading() {
+    setIsEditingReading(false);
+    setEditingReadingForm(null);
+  }
+
+  function saveEditedReading() {
+    if (!selectedReading || !editingReadingForm?.title.trim()) return;
+
+    const totalQuestions = clampNumber(editingReadingForm.totalQuestions, 13);
+    const correctCount = Math.min(clampNumber(editingReadingForm.correctCount, 0), totalQuestions || 999);
+
+    updateReading(selectedReading.id, {
+      title: editingReadingForm.title.trim(),
+      source: editingReadingForm.source.trim(),
+      passageNumber: editingReadingForm.passageNumber.trim(),
+      date: editingReadingForm.date || todayISO(),
+      timeSpent: clampNumber(editingReadingForm.timeSpent, 0),
+      totalQuestions,
+      correctCount,
+      difficulty: editingReadingForm.difficulty || "3",
+      notes: editingReadingForm.notes.trim(),
+    });
+
+    setIsEditingReading(false);
+    setEditingReadingForm(null);
+  }
 
   return (
     <div className="readings-layout">
@@ -1040,6 +1105,10 @@ function ReadingsPage(props) {
               <Input label="Passage" value={readingForm.passageNumber} onChange={(v) => setReadingForm({ ...readingForm, passageNumber: v })} placeholder="1" />
               <Input type="date" label="日期" value={readingForm.date} onChange={(v) => setReadingForm({ ...readingForm, date: v })} />
             </div>
+            <DifficultyPicker
+              value={readingForm.difficulty || "3"}
+              onChange={(v) => setReadingForm({ ...readingForm, difficulty: v })}
+            />
             <div className="form-grid three">
               <Input type="number" label="用时" value={readingForm.timeSpent} onChange={(v) => setReadingForm({ ...readingForm, timeSpent: v })} placeholder="18" />
               <Input type="number" label="总题数" value={readingForm.totalQuestions} onChange={(v) => setReadingForm({ ...readingForm, totalQuestions: v })} />
@@ -1077,21 +1146,52 @@ function ReadingsPage(props) {
         ) : (
           <>
             <Card>
-              <div className="reading-summary">
-                <div>
-                  <h2>{selectedReading.title}</h2>
-                  <p className="muted-line">
-                    {selectedReading.source || "未填写来源"} · {selectedReading.date} · 用时 {selectedReading.timeSpent || 0} 分钟
-                  </p>
-                  <p className="summary-score">
-                    正确率：{selectedReading.totalQuestions ? Math.round((selectedReading.correctCount / selectedReading.totalQuestions) * 100) : 0}% · {selectedReading.correctCount}/{selectedReading.totalQuestions}
-                  </p>
-                  {selectedReading.notes && <p className="note-box">{selectedReading.notes}</p>}
+              {!isEditingReading ? (
+                <div className="reading-summary">
+                  <div>
+                    <h2>{selectedReading.title}</h2>
+                    <p className="muted-line">
+                      {selectedReading.source || "未填写来源"} · {selectedReading.date} · 用时 {selectedReading.timeSpent || 0} 分钟 · 难度 {selectedReading.difficulty || "3"}/5
+                    </p>
+                    <p className="summary-score">
+                      正确率：{selectedReading.totalQuestions ? Math.round((selectedReading.correctCount / selectedReading.totalQuestions) * 100) : 0}% · {selectedReading.correctCount}/{selectedReading.totalQuestions}
+                    </p>
+                    {selectedReading.notes && <p className="note-box">{selectedReading.notes}</p>}
+                  </div>
+                  <div className="reading-summary-actions">
+                    <button type="button" onClick={() => startEditReading(selectedReading)} className="secondary-button">
+                      编辑
+                    </button>
+                    <button onClick={() => deleteReading(selectedReading.id)} className="danger-button">
+                      <Trash2 size={16} /> 删除
+                    </button>
+                  </div>
                 </div>
-                <button onClick={() => deleteReading(selectedReading.id)} className="danger-button">
-                  <Trash2 size={16} /> 删除
-                </button>
-              </div>
+              ) : (
+                <div className="form-stack">
+                  <SectionTitle icon={BookOpen} title="编辑阅读基本信息" subtitle="修改后会自动保存到本地，不会影响已录入的错题、生词和句子。" />
+                  <Input label="标题" value={editingReadingForm.title} onChange={(v) => setEditingReadingForm({ ...editingReadingForm, title: v })} />
+                  <Input label="来源" value={editingReadingForm.source} onChange={(v) => setEditingReadingForm({ ...editingReadingForm, source: v })} />
+                  <div className="form-grid two">
+                    <Input label="Passage" value={editingReadingForm.passageNumber} onChange={(v) => setEditingReadingForm({ ...editingReadingForm, passageNumber: v })} />
+                    <Input type="date" label="日期" value={editingReadingForm.date} onChange={(v) => setEditingReadingForm({ ...editingReadingForm, date: v })} />
+                  </div>
+                  <DifficultyPicker
+                    value={editingReadingForm.difficulty || "3"}
+                    onChange={(v) => setEditingReadingForm({ ...editingReadingForm, difficulty: v })}
+                  />
+                  <div className="form-grid three">
+                    <Input type="number" label="用时" value={editingReadingForm.timeSpent} onChange={(v) => setEditingReadingForm({ ...editingReadingForm, timeSpent: v })} />
+                    <Input type="number" label="总题数" value={editingReadingForm.totalQuestions} onChange={(v) => setEditingReadingForm({ ...editingReadingForm, totalQuestions: v })} />
+                    <Input type="number" label="正确数" value={editingReadingForm.correctCount} onChange={(v) => setEditingReadingForm({ ...editingReadingForm, correctCount: v })} />
+                  </div>
+                  <Textarea label="备注" value={editingReadingForm.notes} onChange={(v) => setEditingReadingForm({ ...editingReadingForm, notes: v })} />
+                  <div className="reading-edit-actions">
+                    <button type="button" className="primary-button" onClick={saveEditedReading}>保存修改</button>
+                    <button type="button" className="secondary-button" onClick={cancelEditReading}>取消</button>
+                  </div>
+                </div>
+              )}
             </Card>
 
             <div className="three-col-grid">
