@@ -558,6 +558,47 @@ export default function App() {
     }));
   }
 
+  function updateWordReview(wordId, result) {
+  setData((prev) => ({
+    ...prev,
+    words: prev.words.map((word) => {
+      if (word.id !== wordId) return word;
+
+      if (result === "remember") {
+        const nextCount = Math.min((word.reviewCount || 0) + 1, 5);
+        const intervals = [1, 2, 4, 7, 15];
+        const days = intervals[Math.max(nextCount - 1, 0)] || 31;
+
+        return {
+          ...word,
+          reviewCount: nextCount,
+          status: nextCount >= 5 ? "mastered" : "learning",
+          nextReviewDate: addDays(todayISO(), days),
+        };
+      }
+
+      if (result === "fuzzy") {
+        return {
+          ...word,
+          status: "learning",
+          nextReviewDate: addDays(todayISO(), 1),
+        };
+      }
+
+      if (result === "forgot") {
+        return {
+          ...word,
+          reviewCount: Math.max((word.reviewCount || 0) - 1, 0),
+          status: "new",
+          nextReviewDate: addDays(todayISO(), 1),
+        };
+      }
+
+      return word;
+    }),
+  }));
+}
+
   function deleteWord(wordId) {
     setData((prev) => ({
       ...prev,
