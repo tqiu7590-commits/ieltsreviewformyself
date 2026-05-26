@@ -246,6 +246,14 @@ export default function App() {
     note: "",
   });
 
+  const [standaloneWordForm, setStandaloneWordForm] = useState({
+    word: "",
+    meaning: "",
+    englishMeaning: "",
+    pronunciation: "",
+    notes: "",
+  });
+
   const [sentenceForm, setSentenceForm] = useState({
     content: "",
     type: sentenceTypeOptions[0],
@@ -502,6 +510,47 @@ export default function App() {
     });
   }
 
+  function createStandaloneWord(e) {
+    e.preventDefault();
+
+    const rawWord = standaloneWordForm.word.trim();
+    if (!rawWord) return;
+
+    const normalized = normalizeWord(rawWord);
+    const existingWord = data.words.find((item) => normalizeWord(item.word) === normalized);
+
+    if (existingWord) {
+      alert("这个单词已经在词库里了。你可以在词库列表中查看或继续补充来源。");
+      return;
+    }
+
+    const newWord = {
+      id: uid("w"),
+      word: rawWord,
+      meaning: standaloneWordForm.meaning.trim(),
+      englishMeaning: standaloneWordForm.englishMeaning.trim(),
+      pronunciation: standaloneWordForm.pronunciation.trim(),
+      status: "new",
+      reviewCount: 0,
+      nextReviewDate: todayISO(),
+      notes: standaloneWordForm.notes.trim(),
+      createdAt: todayISO(),
+    };
+
+    setData((prev) => ({
+      ...prev,
+      words: [newWord, ...prev.words],
+    }));
+
+    setStandaloneWordForm({
+      word: "",
+      meaning: "",
+      englishMeaning: "",
+      pronunciation: "",
+      notes: "",
+    });
+  }
+
   function updateWordStatus(wordId, status) {
     setData((prev) => ({
       ...prev,
@@ -725,7 +774,11 @@ export default function App() {
             statusFilter={statusFilter}
             setStatusFilter={setStatusFilter}
             updateWordStatus={updateWordStatus}
+            updateWordReview={updateWordReview}
             deleteWord={deleteWord}
+            standaloneWordForm={standaloneWordForm}
+            setStandaloneWordForm={setStandaloneWordForm}
+            createStandaloneWord={createStandaloneWord}
           />
         )}
         {activeTab === "sentences" && <SentencesPage data={data} deleteItem={deleteItem} />}
@@ -1356,7 +1409,19 @@ function ReadingMistakeCategoryPanel({ mistakes, selectedReading, retakePlan, sa
   );
 }
 
-function VocabularyPage({ data, searchWord, setSearchWord, statusFilter, setStatusFilter, updateWordStatus, updateWordReview, deleteWord }) {
+function VocabularyPage({
+  data,
+  searchWord,
+  setSearchWord,
+  statusFilter,
+  setStatusFilter,
+  updateWordStatus,
+  updateWordReview,
+  deleteWord,
+  standaloneWordForm,
+  setStandaloneWordForm,
+  createStandaloneWord,
+}) {
   const [expandedWordId, setExpandedWordId] = useState(null);
 
   const words = data.words
@@ -1376,6 +1441,54 @@ function VocabularyPage({ data, searchWord, setSearchWord, statusFilter, setStat
 
   return (
     <div className="page-stack">
+      <Card>
+        <SectionTitle
+          icon={Plus}
+          title="单独录入词汇"
+          subtitle="用于补录不属于某篇阅读的单词，或先建立词库后再补来源。"
+        />
+        <form onSubmit={createStandaloneWord} className="form-stack">
+          <div className="form-grid two">
+            <Input
+              label="单词"
+              value={standaloneWordForm.word}
+              onChange={(v) => setStandaloneWordForm({ ...standaloneWordForm, word: v })}
+              placeholder="例如：substantial"
+            />
+            <Input
+              label="中文词义"
+              value={standaloneWordForm.meaning}
+              onChange={(v) => setStandaloneWordForm({ ...standaloneWordForm, meaning: v })}
+              placeholder="大量的；重要的"
+            />
+          </div>
+
+          <div className="form-grid two">
+            <Input
+              label="英文释义"
+              value={standaloneWordForm.englishMeaning}
+              onChange={(v) => setStandaloneWordForm({ ...standaloneWordForm, englishMeaning: v })}
+              placeholder="large in amount, value, or importance"
+            />
+            <Input
+              label="音标"
+              value={standaloneWordForm.pronunciation}
+              onChange={(v) => setStandaloneWordForm({ ...standaloneWordForm, pronunciation: v })}
+              placeholder="/səbˈstænʃəl/"
+            />
+          </div>
+
+          <Textarea
+            label="备注"
+            value={standaloneWordForm.notes}
+            onChange={(v) => setStandaloneWordForm({ ...standaloneWordForm, notes: v })}
+            placeholder="可以写搭配、易混词、雅思常见用法等。"
+          />
+
+          <button className="primary-button">加入词库</button>
+        </form>
+      </Card>
+
       <Card>
         <SectionTitle icon={Library} title="本地词库" subtitle="列表形式更适合背词；点击一行可以展开来源和原句。" />
         <div className="vocab-summary-row">
@@ -1461,6 +1574,10 @@ function VocabularyPage({ data, searchWord, setSearchWord, statusFilter, setStat
                         <div>
                           <p className="field-label">复习阶段</p>
                           <p className="mini-body">{getReviewStageLabel(word.reviewCount)}</p>
+                        </div>
+                        <div>
+                          <p className="field-label">备注</p>
+                          <p className="mini-body">{word.notes || "未填写"}</p>
                         </div>
                       </div>
                       <div className="source-list expanded-source-list">

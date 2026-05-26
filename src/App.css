@@ -1050,3 +1050,15 @@ button {
     grid-template-columns: 1fr;
   }
 }
+.reading-summary-actions,
+.reading-edit-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.reading-edit-actions .primary-button,
+.reading-edit-actions .secondary-button {
+  width: auto;
+}
