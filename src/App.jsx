@@ -30,6 +30,12 @@ const defaultDailyGoals = {
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const uid = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 
+function addDays(dateString, days) {
+  const date = new Date(`${dateString}T00:00:00`);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 const initialData = {
   readings: [],
   mistakes: [],
